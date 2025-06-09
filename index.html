@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Calorie Tracker</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+/* Animated gradient background */
+body::before {
+content: '';
+position: fixed;
+top: 0;
+left: 0;
+height: 100%;
+width: 100%;
+background: linear-gradient(-45deg, #ff9a9e, #fad0c4, #a1c4fd, #c2e9fb);
+background-size: 400% 400%;
+animation: gradient 15s ease infinite;
+z-index: -1;
+opacity: 0.3;
+}
+@keyframes gradient {
+0% {
+background-position: 0% 50%;
+}
+50% {
+background-position: 100% 50%;
+}
+100% {
+background-position: 0% 50%;
+}
+}
+.card-hover {
+transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.card-hover:hover {
+transform: translateY(-8px) scale(1.02);
+box-shadow: 0 15px 25px rgba(0, 0, 0, 0.15);
+}
+.theme-toggle {
+transition: background 0.4s;
+}
+.info-box {
+background: linear-gradient(135deg, #FFDEE9 0%, #B5FFFC 100%);
+animation: fadeIn 0.6s ease-in-out;
+}
+.dark .info-box {
+background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+@keyframes fadeIn {
+from {
+opacity: 0;
+transform: translateY(10px);
+}
+to {
+opacity: 1;
+transform: translateY(0);
+}
+}
+</style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-100 font-sans
+transition-all duration-300">
+<div class="container mx-auto px-4 py-8 relative z-10">
+<!-- Header -->
+<header class="text-center mb-6">
+<h1 class="text-4xl font-bold mb-2">Calorie Tracker</h1>
+<p class="text-gray-600 dark:text-gray-300">Upload or capture food photo to analyze
+nutritional info</p>
+<div class="flex justify-center mt-4">
+<label class="inline-flex items-center cursor-pointer">
+<input type="checkbox" id="themeToggle" class="sr-only">
+<span class="w-14 h-8 bg-gray-300 dark:bg-gray-600 rounded-full p-1 flex items-center
+theme-toggle">
+<span class="w-6 h-6 bg-white rounded-full shadow-md transform transition-transform
+duration-300"></span>
+</span>
+</label>
+</div>
+</header>
+<!-- Upload Section -->
+<div class="max-w-md mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-md p-6
+mb-8">
+<div class="flex flex-col items-center gap-4">
+<div class="flex gap-4">
+<button id="cameraBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2
+rounded-lg transition">Take Picture</button>
+<button id="uploadBtn" class="bg-gray-200 dark:bg-gray-700 text-gray-900
+dark:text-white px-6 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600
+transition">Upload Photo</button>
+</div>
+<input type="file" id="fileInput" accept="image/*" class="hidden">
+<video id="video" class="w-full max-w-xs rounded-lg hidden" autoplay></video>
+<canvas id="canvas" class="hidden"></canvas>
+<img id="preview" class="w-full max-w-xs rounded-lg hidden" alt="Food Preview">
+</div>
+</div>
+<!-- Results Section -->
+<div id="results" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+</div>
+<script>
+const cameraBtn = document.getElementById('cameraBtn');
+const uploadBtn = document.getElementById('uploadBtn');
+const fileInput = document.getElementById('fileInput');
+const video = document.getElementById('video');
+const canvas = document.getElementById('canvas');
+const preview = document.getElementById('preview');
+const results = document.getElementById('results');
+const toggle = document.getElementById('themeToggle');
+const IMGBB_API_KEY = '0c3672a5fc34513e0f40153f9f02b5c0';
+const GROQ_API_KEY =
+'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';
+const getValue = (obj, key1, key2) => obj[key1] ?? obj[key2] ?? 0;
+const normalizeItem = (item) => ({
+item_name: item.item_name ?? 'Unknown Item',
+total_calories: item.total_calories ?? 0,
+total_protein: getValue(item, 'total_protein', 'total_protien'),
+total_carbs: getValue(item, 'total_carbs', 'toal_carbs'),
+total_fats: getValue(item, 'total_fats', 'toal_fats')
+});
+// Dark mode toggle
+toggle.addEventListener('change', () => {
+document.documentElement.classList.toggle('dark');
+});
+// Camera logic
+cameraBtn.addEventListener('click', async () => {
+try {
+const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+video.classList.remove('hidden');
+preview.classList.add('hidden');
+video.srcObject = stream;
+setTimeout(() => {
+captureImage(stream);
+}, 3000);
+} catch (err) {
+alert('Camera access denied or not available');
+}
+});
+function captureImage(stream) {
+canvas.width = video.videoWidth;
+canvas.height = video.videoHeight;
+canvas.getContext('2d').drawImage(video, 0, 0);
+const imageData = canvas.toDataURL('image/jpeg');
+preview.src = imageData;
+preview.classList.remove('hidden');
+video.classList.add('hidden');
+stream.getTracks().forEach(track => track.stop());
+uploadToImgbb(imageData);
+}
+// Upload button logic
+uploadBtn.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', (e) => {
+const file = e.target.files[0];
+if (file) {
+const reader = new FileReader();
+reader.onload = (event) => {
+preview.src = event.target.result;
+preview.classList.remove('hidden');
+video.classList.add('hidden');
+uploadToImgbb(event.target.result);
+};
+reader.readAsDataURL(file);
+}
+});
+async function uploadToImgbb(imageData) {
+const formData = new FormData();
+formData.append('image', imageData.split(',')[1]);
+try {
+const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+method: 'POST',
+body: formData
+});
+const data = await response.json();
+if (data.success) {
+const imageUrl = data.data.url;
+analyzeCalories(imageUrl);
+} else {
+alert('Image upload failed');
+}
+} catch (err) {
+alert('Upload error: ' + err.message);
+}
+}
+async function analyzeCalories(imageUrl) {
+const payload = {
+messages: [{
+role: "user",
+content: [
+{
+type: "text",
+text: "Give calories of each item in this image in this below JSON format only\n{items:[{item_name:name of item, total_calories:in gm, total_protien:in gm , toal_carbs: in gm,toal_fats:in gm},...]}"
+},
+{
+type: "image_url",
+image_url: { url: imageUrl }
+}
+]
+}],
+model: "llama-3.2-90b-vision-preview",
+temperature: 0.5,
+max_completion_tokens: 1024,
+top_p: 1,
+stream: false,
+response_format: { type: "json_object" },
+stop: null
+};
+try {
+const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+method: 'POST',
+headers: {
+'Content-Type': 'application/json',
+'Authorization': `Bearer ${GROQ_API_KEY}`
+},
+body: JSON.stringify(payload)
+});
+const data = await response.json();
+const items = JSON.parse(data.choices[0].message.content).items.map(normalizeItem);
+displayResults(items);
+} catch (err) {
+alert('Analysis error: ' + err.message);
+}
+}
+function displayResults(items) {
+results.innerHTML = items.map(item => `
+<div class="info-box rounded-xl p-6 shadow-lg text-gray-800 dark:text-white card-hover">
+<h2 class="text-2xl font-semibold mb-3">${item.item_name}</h2>
+<div class="space-y-2 text-sm">
+<p><strong>Calories:</strong> ${item.total_calories} kcal</p>
+<p><strong>Protein:</strong> ${item.total_protein} g</p>
+<p><strong>Carbs:</strong> ${item.total_carbs} g</p>
+<p><strong>Fat:</strong> ${item.total_fats} g</p>
+</div>
+</div>
+`).join('');
+}
+</script>
+</body>
+</html>
