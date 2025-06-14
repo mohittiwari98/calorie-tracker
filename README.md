@@ -2,6 +2,9 @@
 # Calorie Tracker
 
 Welcome to the Calorie Tracker! This is a simple web application designed to help users track their daily caloric intake and manage their diet. The application allows users to log their food consumption, view nutritional information, and monitor their progress toward their dietary goals.
+<div align="center">
+  <img src="Screenshot_2025-06-14-16-42-21-26_254de13a4bc8758c9908fff1f73e3725.jpg" alt="DevOpsShack Banner">
+</div>
 
 ## Features
 
@@ -11,6 +14,9 @@ Welcome to the Calorie Tracker! This is a simple web application designed to hel
 - Goal Setting: Set specific caloric goals and get insights on your progress.
 - History Tracking: Review your food logs over time to identify patterns and make informed dietary choices.
 - Responsive Design: Access the application on both desktop and mobile devices.
+<div align="center">
+  <img src="Screenshot_2025-06-14-16-42-54-72_254de13a4bc8758c9908fff1f73e3725.jpg" alt="DevOpsShack Banner">
+</div>
 
 ## Tech Stack
 
